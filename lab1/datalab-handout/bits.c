@@ -139,7 +139,7 @@ NOTES:
  *   Rating: 1
  */
 int bitAnd(int x, int y) {
-  return 2;
+	return ~(~x | ~y); 
 }
 /* 
  * getByte - Extract byte n from word x
@@ -189,8 +189,23 @@ int bitCount(int x) {
  *   Rating: 4 
  */
 int bang(int x) {
-  return 2;
+  return ((((x | (~x + 1)) >> 31) & 1) ^ 1);
+  /*  Notice that the 2's 0 and -0 are 
+   *
+   *
+   */
+
 }
+/*
+int bang(int x) {
+	int a = (x >> 16) | x;
+	int b = (a >> 8) | a;
+	int c = (b >> 4) | b;
+	int d = (c >> 2) | c;
+	int e = (d >> 1) | d;
+	return ((~e) & 1);
+}
+*/
 /* 
  * tmin - return minimum two's complement integer 
  *   Legal ops: ! ~ & ^ | + << >>
