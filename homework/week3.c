@@ -1,16 +1,18 @@
 #include<stdio.h>
 
+/* 2.62 */
 int int_shifts_are_arithmetic()
 {
-	int a = -1;
 	/*
 	 * 算术位移会在负数位移时在高位补 1，逻辑位移则为补 0
 	 * 若为前者，位移后仍为负值，否则位移后会变为正数
 	 * 故只需判断位移时后的正负性，即为函数返回值
 	 */
+	int a = -1;
 	return (a >> 1) < 0;
 }
 
+/* 2.67 */
 int int_size_is_32()
 {
 	/*
@@ -25,10 +27,9 @@ int int_size_is_32()
 	 */
 
 	/* 将 k >= w 的一次位移拆分成 k < w 的多次位移 */
-	int set_msb = 1 << 8;
-	set_msb = set_msb << 8;
-	set_msb = set_msb << 8;
-	set_msb = set_msb << 7;
+	int set_msb = 1 << 15;
+	set_msb = set_msb << 15;
+	set_msb = set_msb << 1;
 	int beyond_msb = set_msb << 1;
 	/*
 	 * 在 w >= 32 的机器上 set_maxu 是非 0 数
@@ -38,9 +39,31 @@ int int_size_is_32()
 	return set_msb && !beyond_msb;
 }
 
+/* 2.75 */
+unsigned unsigned_high_prod(unsigned x, unsigned y)
+{
+	unsigned bits_of_int = sizeof(int) * 8;
+	unsigned highest_bit_x = x >> (bits_of_int - 1);
+	unsigned highest_bit_y = y >> (bits_of_int - 1);
+	unsigned middle_term = highest_bit_x * y + x * highest_bit_y;
+	/*
+	 * unsigned last_term = (highest_bit_x * highest_bit_y) << bits_of_int; 
+	 * 左移 bits_of_int 本身会导致 last_term 超出限制溢出，预期情况下会使得低 bits_of_int 位全为 0，
+	 * 但由于 2.67 中描述的情况，位移量超过 bits_of_int 时的表现不确定
+	 * 且该项在本应是 signed_high_prod((int) x, (int)y) + middle_term + last_term 的结果中不影响低 bits_of_int 位
+	 * 即不影响结果
+	 * 故直接舍去这一项
+	 */
+	return signed_high_prod((int)x, (int)y) + middle_term;
+}
+
 int main()
 {
 	printf("The result of int_shifts_are_arithmetic is %d\n", int_shifts_are_arithmetic());
 	printf("The result of int_size_is_32 is %d\n", int_size_is_32());
+	int a = 0, b = 0;
+	printf("Input two unsigned integer to calculate unsigned_high_prod:\n");
+	scanf("%u%u", &a, &b);
+	printf("The result of unsigned_high_prod is %u\n", unsigned_high_prod(a, b));
 	return 0;
 }
