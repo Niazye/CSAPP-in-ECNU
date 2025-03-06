@@ -139,6 +139,11 @@ NOTES:
  *   Rating: 1
  */
 int bitAnd(int x, int y) {
+	/*
+	 * 布尔代数运算
+	 * 记 x 和 y 分别为一个位
+	 * (x & y) 等价于 ~(~(x & y)) 等价于 ~(~x | ~y)
+	 */
 	return ~(~x | ~y); 
 }
 /* 
@@ -150,15 +155,12 @@ int bitAnd(int x, int y) {
  *   Rating: 2
  */
 int getByte(int x, int n) {
-
-
-
-
-
-
-
-  return 2;
-
+	/*
+	 * 使用右移运算符，将目标字节右移到最低位
+	 * 再与 0xff 做与运算
+	 * 仅获取最低字节的内容
+	 */ 
+	return (x >> (n << 3)) & 0xff;
 }
 /* 
  * logicalShift - shift x to the right by n, using a logical shift
@@ -169,7 +171,13 @@ int getByte(int x, int n) {
  *   Rating: 3 
  */
 int logicalShift(int x, int n) {
-  return 2;
+	/*
+	 * 先右移，由于逻辑右移在左侧补 0
+	 * 故将高位补充的 1 或 0 都与 0 做与运算
+	 */
+	int xx = x >> n;
+	int y = xx & (((1 << (31 + ~n + 1)) << 1) + ~1 + 1);
+	return y;
 }
 /*
  * bitCount - returns count of number of 1's in word
@@ -179,7 +187,33 @@ int logicalShift(int x, int n) {
  *   Rating: 4
  */
 int bitCount(int x) {
-  return 2;
+	/*
+	 * 相邻两个位相加，即为每 2 个位一组的每个组中 1 的个数
+	 * 将上一行的结果，相邻两个 2 位数相加，可得每 4 个位一组，每组中 1 的个数
+	 * 将上一行的结果，相邻两个 4 位数相加，可得每 8 个位一组，每组中 1 的个数
+	 * 以此类推直到全部位中 1 的个数
+	 */
+  	int xx = x;
+	int mask_1 = 0x55;
+	int mask_2 = 0x33;
+	int mask_4 = 0x0f;
+	int mask_8 = 0xff;
+	int mask_16 = 0xff;
+	mask_1 = (mask_1 << 8) + mask_1;
+	mask_1 = (mask_1 << 16) + mask_1;
+	mask_2 = (mask_2 << 8) + mask_2;
+	mask_2 = (mask_2 << 16) + mask_2;
+	mask_4 = (mask_4 << 8) + mask_4;
+	mask_4 = (mask_4 << 16) + mask_4;
+	mask_8 = (mask_8 << 16) + mask_8;
+	mask_16 = (mask_16 << 8) + mask_16;
+	xx = (xx & mask_1) + ((xx >> 1) & mask_1);
+	xx = (xx & mask_2) + ((xx >> 2) & mask_2);
+	xx = (xx & mask_4) + ((xx >> 4) & mask_4);
+	xx = (xx & mask_8) + ((xx >> 8) & mask_8);
+	xx = (xx & mask_16) + ((xx >> 16) & mask_16);
+
+	return xx;
 }
 /* 
  * bang - Compute !x without using !
@@ -189,11 +223,13 @@ int bitCount(int x) {
  *   Rating: 4 
  */
 int bang(int x) {
-  return ((((x | (~x + 1)) >> 31) & 1) ^ 1);
-  /*  Notice that the 2's 0 and -0 are 
-   *
-   *
-   */
+	/*
+	 * 注意到 0 与非 0 数的不同之处为
+	 * 0 与 -0 的最高位都为 0，而非 0 数 x 与 -x 中总有一个的最高位为 1
+	 * 这是由于非零负数用最高位表示符号位导致的
+	 * 故只需判断 x 与 -x 的最高位中是否有 1
+	 */
+  return (((x | (~x + 1)) >> 31) & 1) ^ 1;
 
 }
 /*
@@ -213,7 +249,11 @@ int bang(int x) {
  *   Rating: 1
  */
 int tmin(void) {
-  return 2;
+  	/*
+	 * 以 2 的补码表示的32位整型的最小值为 -2147483648
+	 * 即 0x80000000
+	 */
+	return 0x80 << 24;
 }
 /* 
  * fitsBits - return 1 if x can be represented as an 
@@ -225,7 +265,18 @@ int tmin(void) {
  *   Rating: 2
  */
 int fitsBits(int x, int n) {
-  return 2;
+	int dif = 32 + (~n) + 1;
+	//int xx = x << dif;
+	//xx = xx >> dif;
+	return !(((x << dif) >> dif) ^ x);
+	
+
+
+
+
+
+
+  //return 2;
 }
 /* 
  * divpwr2 - Compute x/(2^n), for 0 <= n <= 30
@@ -246,7 +297,7 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
-  return 2;
+  return ~x+1;
 }
 /* 
  * isPositive - return 1 if x > 0, return 0 otherwise 
@@ -256,7 +307,9 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-  return 2;
+	int xx = (x >> 31);
+	int yy = ((x + ~1 + 1) >> 31);
+  return ~((xx | yy) & 1);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
