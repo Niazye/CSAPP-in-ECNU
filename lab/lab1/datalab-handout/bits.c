@@ -280,8 +280,15 @@ int fitsBits(int x, int n) {
 	 *
 	 * !!!!!!!!!!!!
 	 */	
-	int mov = 33 + ~n;
-	return !(((x << mov) >> mov) ^ x);
+	//int mov = 33 + ~n;
+	//return !(((x << mov) >> mov) ^ x);
+	int shift = 32 + ~n + 1;
+	int y = (x << shift) >> shift;
+	int result = !(y ^ x);
+	int isN32 = !(n ^ 32);
+	int minVal = 1 << 31;
+	int isXmin = !(x ^ minVal);
+	return result & !(isN32 & isXmin);
 
 }
 /* 
@@ -315,6 +322,11 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
+	/*
+	 * FAILED
+	 * FAILED
+	 * FAILED
+	 */
 	int xx = (x >> 31);
 	int yy = ((x + ~1 + 1) >> 31);
   return ~((xx | yy) & 1);
@@ -327,7 +339,13 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+	/*
+	 * FAILED
+	 * FAILED
+	 * FAILED
+	 */
+  	return (((y + ~x + 1) >> 31) & 1) ^ 1;
+	return 2;
 }
 /*
  * ilog2 - return floor(log base 2 of x), where x > 0
