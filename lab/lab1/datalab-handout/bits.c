@@ -144,6 +144,7 @@ int bitAnd(int x, int y) {
 	 * 记 x 和 y 分别为一个位
 	 * (x & y) 等价于 ~(~(x & y)) 等价于 ~(~x | ~y)
 	 */
+
 	return ~(~x | ~y); 
 }
 /* 
@@ -266,29 +267,15 @@ int tmin(void) {
  */
 int fitsBits(int x, int n) {
   	/*
-	 * FFFFFFFFFFFF
-	 * 
-	 * AAAAAAAAAAAA
-	 *
-	 * IIIIIIIIIIII
-	 *
-	 * LLLLLLLLLLLL
-	 *
-	 * EEEEEEEEEEEE
-	 *
-	 * DDDDDDDDDDDD
-	 *
-	 * !!!!!!!!!!!!
-	 */	
-	//int mov = 33 + ~n;
-	//return !(((x << mov) >> mov) ^ x);
-	int shift = 32 + ~n + 1;
-	int y = (x << shift) >> shift;
-	int result = !(y ^ x);
-	int isN32 = !(n ^ 32);
-	int minVal = 1 << 31;
-	int isXmin = !(x ^ minVal);
-	return result & !(isN32 & isXmin);
+	 * https://www.zybuluo.com/SovietPower/note/1790502#csapp-lab1
+ 	 * 有显示该函数可能无法通过
+	 * 本地测试确实如此
+	 * 报错包括 fitsBits(0, 32) should be 0 等
+	 * 事实错误
+`	 */
+	int mov1 = 16 + ~n;
+	int mov2 = 17;
+	return !(((((x << mov1) << mov2) >> mov1) >> mov2) ^ x);
 
 }
 /* 
