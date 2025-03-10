@@ -314,9 +314,8 @@ int isPositive(int x) {
 	 * FAILED
 	 * FAILED
 	 */
-	int xx = (x >> 31);
-	int yy = ((x + ~1 + 1) >> 31);
-  return ~((xx | yy) & 1);
+	int sign = (x >> 31) & 1;
+  return !sign & !!x;
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -331,8 +330,12 @@ int isLessOrEqual(int x, int y) {
 	 * FAILED
 	 * FAILED
 	 */
-  	return (((y + ~x + 1) >> 31) & 1) ^ 1;
-	return 2;
+	int dif = (y + ~x + 1);
+	int sign_of_dif = (dif >> 31) & 1;
+	int signx = (x >> 31) & 1;
+	int signy = (y >> 31) & 1;	
+	int dif_sign = (signx ^ signy);
+	return (dif_sign & signx) | (!dif_sign & !sign_of_dif);
 }
 /*
  * ilog2 - return floor(log base 2 of x), where x > 0
