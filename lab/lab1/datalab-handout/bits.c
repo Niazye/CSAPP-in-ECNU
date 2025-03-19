@@ -229,6 +229,11 @@ int bang(int x) {
 	 * 0 与 -0 的最高位都为 0，而非 0 数 x 与 -x 中总有一个的最高位为 1
 	 * 这是由于非零负数用最高位表示符号位导致的
 	 * 故只需判断 x 与 -x 的最高位中是否有 1
+	 *
+	 * 下面有另一种解法
+	 * 具体是通过二分的方法获取到数字的二进制表示中是否含有 1
+	 * 含有 1 则输出 0
+	 * 否则输出 1
 	 */
   return (((x | (~x + 1)) >> 31) & 1) ^ 1;
 
@@ -287,9 +292,17 @@ int fitsBits(int x, int n) {
  *   Rating: 2
  */
 int divpwr2(int x, int n) {
-	int mask = -1 ^ (-1 << n);
-	int need_plus = (!!(mask & x)) & ((x >> 31) & 1);
-	return (x >> n) + need_plus;
+	/*
+	 * 补码除法的公式为 (x < 0 ? x + (1 << k) - 1 : x) >> k
+	 * 不能使用 if 语句判断是否为负数
+	 * 故通过令非负数的偏置值为 0 的方式来规避判断
+	 * 可以利用符号位和偏置值的与运算
+	 * 来使得非负数的偏置值为 0
+	 */
+	int mask = (x >> 31);
+	int bias = ((1 << n) + ~1 + 1) & mask;
+	int res = (bias + x) >> n;
+	return res;
 }
 /* 
  * negate - return -x 
@@ -309,11 +322,6 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
-	/*
-	 * FAILED
-	 * FAILED
-	 * FAILED
-	 */
 	int sign = (x >> 31) & 1;
   return !sign & !!x;
 }
@@ -325,11 +333,6 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-	/*
-	 * FAILED
-	 * FAILED
-	 * FAILED
-	 */
 	int dif = (y + ~x + 1);
 	int sign_of_dif = (dif >> 31) & 1;
 	int signx = (x >> 31) & 1;
@@ -345,7 +348,10 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4
  */
 int ilog2(int x) {
-  return 2;
+	int res = 0;
+	int mask1 = 0xff;
+	mask1 = (mask1 << 8) | mask1;
+      	return res;
 }
 /* 
  * float_neg - Return bit-level equivalent of expression -f for
@@ -359,7 +365,11 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
- return 2;
+	unsigned mask_significand = -1U >> 9;
+	unsigned mask_exponent = 0xff << 23;
+	if((uf & mask_exponent) == mask_exponent && (uf & mask_significand))
+		return uf;
+	return uf ^ (1 << 31);
 }
 /* 
  * float_i2f - Return bit-level equivalent of expression (float) x
@@ -371,7 +381,37 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  return 2;
+  	int high_bit = 0;
+	unsigned exponent = 0;
+	unsigned sign = 0;
+	unsigned significand = 0;
+	unsigned tmpx = 0;
+	unsigned res = 0;
+	unsigned mask_roundF = 0;
+	unsigned mask_round1 = 0;
+	if(x == 0) 
+		return 0;
+	if(x < 0){
+		x = -x;
+		sign = 1 << 31;
+	}
+	tmpx = x;
+	while(tmpx){
+		high_bit++;
+		tmpx = tmpx >> 1;
+	}
+	mask_roundF = -1U >> (55 - high_bit);
+	mask_round1 = 1 << (high_bit - 25);
+	if(high_bit >= 25){
+		if((x & (mask_roundF >> 1)) > (mask_round1)) res = 1;
+		else if((x & mask_roundF) == ((mask_round1 << 1) + mask_round1)) res = 1;
+	}
+	significand = ((x << (32 - high_bit)) >> 8);
+	significand = significand & (-1U >> 9);
+	//if(significand & 1) significand += 1;
+	exponent = (high_bit + 126) << 23;
+	res = res + exponent + sign + significand;
+	return res;
 }
 /* 
  * float_twice - Return bit-level equivalent of expression 2*f for
@@ -385,5 +425,10 @@ unsigned float_i2f(int x) {
  *   Rating: 4
  */
 unsigned float_twice(unsigned uf) {
-  return 2;
+	unsigned sign = uf & (1 << 31);
+	unsigned exp = (uf >> 23) & 0xff;
+	if(uf == 0 || uf == (1 << 31)) return uf;
+	if(exp == 0xff) return uf;
+	if(exp == 0) return (uf << 1) | sign;
+	return uf = uf + (1 << 23);
 }
