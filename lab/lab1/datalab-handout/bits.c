@@ -161,6 +161,7 @@ int getByte(int x, int n) {
 	 * 再与 0xff 做与运算
 	 * 仅获取最低字节的内容
 	 */ 
+
 	return (x >> (n << 3)) & 0xff;
 }
 /* 
@@ -178,6 +179,7 @@ int logicalShift(int x, int n) {
 	 */
 	int xx = x >> n;
 	int y = xx & (((1 << (31 + ~n + 1)) << 1) + ~1 + 1);
+
 	return y;
 }
 /*
@@ -194,7 +196,7 @@ int bitCount(int x) {
 	 * 将上一行的结果，相邻两个 4 位数相加，可得每 8 个位一组，每组中 1 的个数
 	 * 以此类推直到全部位中 1 的个数
 	 */
-  	int xx = x;
+	int xx = x;
 	int mask_1 = 0x55;
 	int mask_2 = 0x33;
 	int mask_4 = 0x0f;
@@ -235,7 +237,8 @@ int bang(int x) {
 	 * 含有 1 则输出 0
 	 * 否则输出 1
 	 */
-  return (((x | (~x + 1)) >> 31) & 1) ^ 1;
+
+	return (((x | (~x + 1)) >> 31) & 1) ^ 1;
 
 }
 /*
@@ -245,6 +248,7 @@ int bang(int x) {
 	int c = (b >> 4) | b;
 	int d = (c >> 2) | c;
 	int e = (d >> 1) | d;
+
 	return ((~e) & 1);
 }
 */
@@ -259,6 +263,7 @@ int tmin(void) {
 	 * 以 2 的补码表示的32位整型的最小值为 -2147483648
 	 * 即 0x80000000
 	 */
+	
 	return 0x80 << 24;
 }
 /* 
@@ -276,9 +281,14 @@ int fitsBits(int x, int n) {
  	 * 有显示该函数可能无法通过
 	 * 本地测试确实如此
 	 * 报错包括 fitsBits(0, 32) should be 0 等
+	 * 
+	 * 将数字左移 32 - n 位再右移 32 - n 位，如果数字没有变化，说明该数字用 n 位可以表示
+	 * 否则说明该数字用 n 位会发生溢出
+	 * 由于位移不能超过 31 位的情况，将位移分成 15 - n 位和 17 位两次
 `	 */
 	int mov1 = 16 + ~n;
 	int mov2 = 17;
+
 	return !(((((x << mov1) << mov2) >> mov1) >> mov2) ^ x);
 
 }
@@ -301,6 +311,7 @@ int divpwr2(int x, int n) {
 	int mask = (x >> 31);
 	int bias = ((1 << n) + ~1 + 1) & mask;
 	int res = (bias + x) >> n;
+
 	return res;
 }
 /* 
@@ -314,7 +325,8 @@ int negate(int x) {
 	/*
 	 * 一个数取非相当于这个数字取反后 + 1
 	 */
-  return ~x+1;
+	
+	return ~x+1;
 }
 /* 
  * isPositive - return 1 if x > 0, return 0 otherwise 
@@ -330,7 +342,8 @@ int isPositive(int x) {
 	 * 一个数为正数当且仅当它的符号位不为 1 且它本身不为 0
 	 */
 	int sign = (x >> 31) & 1;
-  return !sign & !!x;
+	
+	return !sign & !!x;
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -353,6 +366,7 @@ int isLessOrEqual(int x, int y) {
 	int signx = (x >> 31) & 1;
 	int signy = (y >> 31) & 1;	
 	int dif_sign = (signx ^ signy);
+
 	return (dif_sign & signx) | (!dif_sign & !sign_of_dif);
 }
 /*
@@ -384,7 +398,8 @@ int ilog2(int x) {
 	res = res + (!!(x >> 2) << 1);
 	x = x >> (!!(x >> 2) << 1);
 	res = res + (!!(x >> 1) << 0);
-      	return res;
+	
+	return res;
 }
 /* 
  * float_neg - Return bit-level equivalent of expression -f for
@@ -406,13 +421,17 @@ unsigned float_neg(unsigned uf) {
 	 * 否则说明为数值，包括 0, -0, oo, -oo, 和规格化数
 	 * 此时只需将最高位的符号位取反，就是结果
 	 */
+	unsigned res = uf;
 	unsigned mask_significand = -1U >> 9;
 	unsigned mask_exponent = 0xff << 23;
 	unsigned exponent = mask_exponent & uf;
 	unsigned significand = mask_significand & uf;
 	if(exponent == mask_exponent && significand)
-		return uf;
-	return uf ^ (1 << 31);
+		res = uf;
+	else 
+		res = uf ^ (1 << 31);
+
+	return res;
 }
 /* 
  * float_i2f - Return bit-level equivalent of expression (float) x
@@ -424,7 +443,7 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  	/*
+	/*
 	 * 根据浮点数的表示规则
 	 * 分别计算符号位、阶码、尾数
 	 * 符号位直接获取负号
@@ -458,8 +477,6 @@ unsigned float_i2f(int x) {
 	unsigned res = 0;
 	unsigned mask_roundF = 0;
 	unsigned mask_round1 = 0;
-	if(x == 0) 
-		return 0;
 	if(x < 0){
 		x = -x;
 		sign = 1 << 31;
@@ -472,14 +489,18 @@ unsigned float_i2f(int x) {
 	mask_roundF = -1U >> (55 - high_bit);
 	mask_round1 = 1 << (high_bit - 25);
 	if(high_bit >= 25){
-		if((x & (mask_roundF >> 1)) > (mask_round1)) res = 1;
-		else if((x & mask_roundF) == ((mask_round1 << 1) + mask_round1)) res = 1;
+		if((x & (mask_roundF >> 1)) > (mask_round1))
+			res = 1;
+		else if((x & mask_roundF) == ((mask_round1 << 1) + mask_round1))
+			res = 1;
 	}
 	significand = ((x << (32 - high_bit)) >> 8);
 	significand = significand & (-1U >> 9);
-	//if(significand & 1) significand += 1;
 	exponent = (high_bit + 126) << 23;
 	res = res + exponent + sign + significand;
+	if(x == 0)
+		res = 0;
+
 	return res;
 }
 /* 
@@ -506,10 +527,15 @@ unsigned float_twice(unsigned uf) {
 	 * 只需将 k 值 + 1
 	 * 即将阶码值 + 1 后返回
 	 */
+	unsigned res = 0;
 	unsigned sign = uf & (1 << 31);
 	unsigned exp = (uf >> 23) & 0xff;
-	if(uf == 0 || uf == (1 << 31)) return uf;
-	if(exp == 0xff) return uf;
-	if(exp == 0) return (uf << 1) | sign;
-	return uf = uf + (1 << 23);
+	if(uf == 0 || uf == (1 << 31) || exp == 0xff)
+		res = uf;
+	else if(exp == 0)
+		res = (uf << 1) | sign;
+	else
+		res = uf + (1 << 23);
+
+	return res;
 }
