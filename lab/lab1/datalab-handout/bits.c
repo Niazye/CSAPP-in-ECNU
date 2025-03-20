@@ -276,7 +276,6 @@ int fitsBits(int x, int n) {
  	 * 有显示该函数可能无法通过
 	 * 本地测试确实如此
 	 * 报错包括 fitsBits(0, 32) should be 0 等
-	 * 事实错误
 `	 */
 	int mov1 = 16 + ~n;
 	int mov2 = 17;
@@ -312,6 +311,9 @@ int divpwr2(int x, int n) {
  *   Rating: 2
  */
 int negate(int x) {
+	/*
+	 * 一个数取非相当于这个数字取反后 + 1
+	 */
   return ~x+1;
 }
 /* 
@@ -322,6 +324,11 @@ int negate(int x) {
  *   Rating: 3
  */
 int isPositive(int x) {
+	/* 
+	 * 一个数的正负取决于这个数的最高位
+	 * 通过右移 31 位获取数字的符号位
+	 * 一个数为正数当且仅当它的符号位不为 1 且它本身不为 0
+	 */
 	int sign = (x >> 31) & 1;
   return !sign & !!x;
 }
@@ -333,6 +340,14 @@ int isPositive(int x) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
+	/* 
+	 * 求 x 是否小于等于 y
+	 * 只需求 y - x 是否大于等于 0
+	 * 当两数之差超过 TMAX 时会发生溢出
+	 * 故需要分两数同号、两数异号两种情况讨论
+	 * 当两数同号时作差不会溢出，直接判断差值的符号位
+	 * 当两数异号的作差可能溢出，直接判断是否是 x 为负且 y 为正
+	 */
 	int dif = (y + ~x + 1);
 	int sign_of_dif = (dif >> 31) & 1;
 	int signx = (x >> 31) & 1;
@@ -348,9 +363,27 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4
  */
 int ilog2(int x) {
+	/*
+	 * 对一个数求 log2 
+	 * 相当于求这个数中最高位的 1 的位置
+	 * 使用二分折半寻找最高位的 1
+	 * 先获取高 16 位的值，如果不为 0 说明高 16 位中有 1
+	 * 将结果 + 16，并将高 16 位移位至低 16 位，寻找此时低 16 中位最高位的 1
+	 * 如果为 0 说明最高位的 1 在低 16 位中，则不做操作，直接在低 16 位中寻找
+	 * 对现在的低 16 位数字，获取高 8 位的值，做同上的操作
+	 * 逐次迭代，寻找到最高位的 1 的位置
+	 * 即 ilog2 的答案
+	 */
 	int res = 0;
-	int mask1 = 0xff;
-	mask1 = (mask1 << 8) | mask1;
+	res = res + (!!(x >> 16) << 4);
+	x = x >> (!!(x >> 16) << 4);
+	res = res + (!!(x >> 8) << 3);
+	x = x >> (!!(x >> 8) << 3);
+	res = res + (!!(x >> 4) << 2);
+	x = x >> (!!(x >> 4) << 2);
+	res = res + (!!(x >> 2) << 1);
+	x = x >> (!!(x >> 2) << 1);
+	res = res + (!!(x >> 1) << 0);
       	return res;
 }
 /* 
@@ -365,9 +398,19 @@ int ilog2(int x) {
  *   Rating: 2
  */
 unsigned float_neg(unsigned uf) {
+	/* 
+	 * 浮点数的符号只由最高位直接决定
+	 * 分别获取阶码位和尾数位
+	 * 如果阶码位为全 1 且尾数为不为 0
+	 * 说明时 NaN，直接返回
+	 * 否则说明为数值，包括 0, -0, oo, -oo, 和规格化数
+	 * 此时只需将最高位的符号位取反，就是结果
+	 */
 	unsigned mask_significand = -1U >> 9;
 	unsigned mask_exponent = 0xff << 23;
-	if((uf & mask_exponent) == mask_exponent && (uf & mask_significand))
+	unsigned exponent = mask_exponent & uf;
+	unsigned significand = mask_significand & uf;
+	if(exponent == mask_exponent && significand)
 		return uf;
 	return uf ^ (1 << 31);
 }
@@ -381,7 +424,33 @@ unsigned float_neg(unsigned uf) {
  *   Rating: 4
  */
 unsigned float_i2f(int x) {
-  	int high_bit = 0;
+  	/*
+	 * 根据浮点数的表示规则
+	 * 分别计算符号位、阶码、尾数
+	 * 符号位直接获取负号
+	 * 
+	 * 先计算尾数
+	 * 
+	 * 尾数通过将原数移位，使其最高位的 1 在第 24 位（从 1 开始计数）
+	 * （由于 implied leading 1 的存在，最高位的 1 将会舍弃，剩余的 1 ~ 23 位即为尾数）
+	 * 设原数最高位的位置为 k
+	 * 当 k 超过 24 时，可能会有舍入的情况存在
+	 * 当 k & (-1U >> 56 - k) > (1 << k - 25) 时，属于大于中间数的情况，应当进位，即在结果中 + 1
+	 * 当 k & (-1U >> 56 - k) < (1 << k - 25) 时，属于小于中间数的情况，应当直接舍去
+	 * 当恰好等于时，属于中间值的情况，应判断被舍入部分的高 1 位，如果是 1 说明舍去后是奇数
+	 * 要保证向偶数舍入应进位，即在结果中 + 1
+	 * 如果高 1 位是 0 说明舍去后是偶数，直接舍去
+	 *
+	 * 再计算阶码
+	 *
+	 * 只需求原数的 k，k - 1 就是阶码的值
+	 * 使用 E = k - 1 = e - 127
+	 * e = E + 127 = k - 1 + 127 = k + 126 即为阶码位
+	 * 
+	 * 将各个部分相加得出结果
+	 * 当输入为 0 时，直接返回 0 
+	 */
+	int high_bit = 0;
 	unsigned exponent = 0;
 	unsigned sign = 0;
 	unsigned significand = 0;
@@ -425,6 +494,18 @@ unsigned float_i2f(int x) {
  *   Rating: 4
  */
 unsigned float_twice(unsigned uf) {
+	/*
+	 * 如果 uf 是 +0 或 -0，那么 2 * uf 就是它本身
+	 * 如果阶码为 0xff，则它是特殊值，同样返回本身
+	 * 如果阶码为 0，则它是非规格化数，阶码值固定为 1 - Bias
+	 * 而尾数不足 1，将其乘 2 只需将尾数乘 2
+	 * 即将尾数左移 1 位
+	 * 否则
+	 * 由于规格化浮点数通过 (1 + frac) * 2 ^ k 来表示
+	 * 将浮点数乘 2
+	 * 只需将 k 值 + 1
+	 * 即将阶码值 + 1 后返回
+	 */
 	unsigned sign = uf & (1 << 31);
 	unsigned exp = (uf >> 23) & 0xff;
 	if(uf == 0 || uf == (1 << 31)) return uf;
