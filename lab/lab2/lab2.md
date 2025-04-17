@@ -366,4 +366,7 @@ flowchart LR
 
 这时函数就会以预想的位置和顺序递归调用，也会以预想的顺序返回，令 `%eax = 2` 并跳出递归。
 
-**secret_phase: 22**
+**SecretPhase: 22**
+
+最后的运行结果为：
+![Solution](./Screenshots/Solution.png){width=50%}
