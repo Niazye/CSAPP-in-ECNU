@@ -59,7 +59,7 @@
 
 ![Phase\_4\_ASM\_Part1](./Screenshots/Phase_4_ASM_Part1.png){width=53%}
 
-首先读入恰好两个整数存入 `%rsp + 8` 和 `%rsp + 16`，且保证第一个数是不大于 `14` 的非负数（负数不能满足无符号比较）。将 `%edx` `%esi` `%edi` 分别初始化为 `14` `0` `*(%rsp + 8)` 后进入函数 `func4`：
+首先读入恰好两个整数存入 `%rsp + 8` 和 `%rsp + 12`，且保证第一个数是不大于 `14` 的非负数（负数不能满足无符号比较）。将 `%edx` `%esi` `%edi` 分别初始化为 `14` `0` `*(%rsp + 8)` 后进入函数 `func4`：
 
 ![Phase\_4\_ASM\_Part2](./Screenshots/Phase_4_ASM_Part2.png){width=45%}
 
