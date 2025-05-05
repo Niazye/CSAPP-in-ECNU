@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "*.S": "assembly",
+        "cachelab.h": "c",
+        "unistd.h": "c",
+        "stdio.h": "c",
+        "getopt.h": "c"
+    }
+}
