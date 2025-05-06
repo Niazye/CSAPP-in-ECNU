@@ -4,6 +4,7 @@
         "cachelab.h": "c",
         "unistd.h": "c",
         "stdio.h": "c",
-        "getopt.h": "c"
+        "getopt.h": "c",
+        "string.h": "c"
     }
 }
