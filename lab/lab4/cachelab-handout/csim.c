@@ -5,19 +5,20 @@
 #include <stdio.h>
 #include <string.h>
 
-typedef unsigned long Ulong;
 typedef unsigned int Uint;
 typedef struct
 {
 	/* data field in cache line is not necessary in this simulator */
 	char valid;
-	Ulong tag;
+	Uint tag;
 	Uint LRU;
 } CacheLine;
 
 void print_help();
-void parse_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong *tag, Ulong *index, Ulong *offset);
-int access_data(CacheLine **cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line);
+void parse_addr(unsigned long addr, Uint num_s, Uint num_b, Uint *tag, Uint *index, Uint *offset);
+int access_data(CacheLine **cache_begin, Uint tag, Uint index, Uint num_E, Uint *line);
+CacheLine **initCache(Uint num_s, Uint num_E);
+void freeCache(CacheLine **cache_begin, Uint num_s, Uint num_E);
 
 int main(int argc, char *argv[])
 {
@@ -27,26 +28,22 @@ int main(int argc, char *argv[])
 	int verbose = 0;
 
 	/* Cache Variables */
-	Uint num_s = 0, num_b = 0;
-	Ulong num_S, num_E = 0;
+	Uint num_s = 0, num_b = 0, num_E = 0;
 	CacheLine **cache_begin;
 
 	/* Trace Variables */
 	FILE *trace_file;
 	char instruction;
-	Ulong addr, value;
-	Ulong tag, index, offset;
-
-	/* Loop variables */
-	Uint i, j;
+	unsigned long addr;
+	Uint tag, index, offset, value;
 
 	/* Counters */
-	Ulong hits = 0, misses = 0, evictions = 0;
-	Ulong instruction_count = 0;
+	Uint hits = 0, misses = 0, evictions = 0;
+	Uint instruction_count = 0;
 
 	/* Used for simulating*/
 	int instruction_result;
-	Ulong line_idx;
+	Uint line_idx;
 
 	/* Parse command line arguments */
 	/* Get cache parameters and help verbose flag */
@@ -90,29 +87,18 @@ int main(int argc, char *argv[])
 	/* Initialize cache */
 	/* Use 2-dimensional array to represent cache */
 	/* Array line for cache set and array column for cache line in set*/
-	num_S = 1 << num_s;
-	cache_begin = (CacheLine **)malloc(num_S * sizeof(CacheLine *));
-	for (i = 0; i < num_S; i++)
-	{
-		cache_begin[i] = (CacheLine *)malloc(num_E * sizeof(CacheLine));
-		for (j = 0; j < num_E; j++)
-		{
-			cache_begin[i][j].valid = 0;
-			cache_begin[i][j].tag = 0;
-			cache_begin[i][j].LRU = 0;
-		}
-	}
+	cache_begin = initCache(num_s, num_E);
 
 	/* Read trace file and simulate cache */
 	/* The behavior of laod_data and store_data are identical in this simulator */
 	/* So just use single access_data function to simulate them */
 	/* As to modify_data, just call access_data twice */
-	while (fscanf(trace_file, " %c %lx,%lx", &instruction, &addr, &value) != EOF)
+	while (fscanf(trace_file, " %c %lx,%x", &instruction, &addr, &value) != EOF)
 	{
 		parse_addr(addr, num_s, num_b, &tag, &index, &offset);
 		instruction_count++;
 		if (verbose)
-			printf("%c %lx,%lx", instruction, addr, value);
+			printf("%c %lx,%x", instruction, addr, value);
 		switch (instruction)
 		{
 		case 'M':
@@ -165,12 +151,7 @@ int main(int argc, char *argv[])
 		default:
 		}
 	}
-	
-	for (i = 0; i < num_S; i++)
-	{
-		free(cache_begin[i]);
-	}
-	free(cache_begin);
+	freeCache(cache_begin, num_s, num_E);
 	fclose(trace_file);
 	
 	printSummary(hits, misses, evictions);
@@ -178,7 +159,7 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-void parse_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong *tag, Ulong *index, Ulong *offset)
+void parse_addr(unsigned long addr, Uint num_s, Uint num_b, Uint *tag, Uint *index, Uint *offset)
 {
 	/* Parse address to get tag, index, and offset */
 	*index = (addr >> num_b) & ((1 << num_s) - 1);
@@ -186,7 +167,40 @@ void parse_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong *tag, Ulong *index, 
 	*tag = addr >> (num_b + num_s);
 	return;
 }
-int access_data(CacheLine **cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line)
+CacheLine** initCache(Uint num_s, Uint num_E)
+{
+	/* Initialize cache */
+	/* Use 2-dimensional array to represent cache */
+	/* Array line for cache set and array column for cache line in set*/
+	int i = 0, j = 0;
+	Uint num_S = 1 << num_s;
+	CacheLine **cache_begin = malloc(num_S * sizeof(CacheLine *));
+	for (i = 0; i < num_S; i++)
+	{
+		cache_begin[i] = (CacheLine *)malloc(num_E * sizeof(CacheLine));
+		for (j = 0; j < num_E; j++)
+		{
+			cache_begin[i][j].valid = 0;
+			cache_begin[i][j].tag = 0;
+			cache_begin[i][j].LRU = 0;
+		}
+	}
+	return cache_begin;
+}
+void freeCache(CacheLine **cache_begin, Uint num_s, Uint num_E)
+{
+	/* Free cache */
+	int num_S = 1 << num_s;
+	int i = 0;
+
+	for (i = 0; i < num_S; i++)
+	{
+		free(cache_begin[i]);
+	}
+	free(cache_begin);
+	return;
+}
+int access_data(CacheLine **cache_begin, Uint tag, Uint index, Uint num_E, Uint *line)
 {
 	/* Access data in cache */
 	int i = 0;
@@ -222,7 +236,7 @@ int access_data(CacheLine **cache_begin, Ulong tag, Ulong index, Uint num_E, Ulo
 	/* It means that line is empty, No data in it */
 	if (cache_begin[index][to_evict].LRU == 0)
 	{
-		/* If so, */
+		/* If so */
 		return 1;
 	}
 
