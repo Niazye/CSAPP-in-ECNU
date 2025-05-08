@@ -7,169 +7,230 @@
 
 typedef unsigned long Ulong;
 typedef unsigned int Uint;
-typedef struct {
+typedef struct
+{
+	/* data field in cache line is not necessary in this simulator */
 	char valid;
 	Ulong tag;
-	Ulong data;
 	Uint LRU;
 } CacheLine;
-void print_help();
-void analyze_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong* tag, Ulong* index, Ulong* offset);
-int access_data(CacheLine** cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line);
-int main(int argc, char* argv[]) {/* 
-	argc = 9;
-	argv[0] = "./csim";
-	argv[1] = "-s";
-	argv[2] = "4";
-	argv[3] = "-E";
-	argv[4] = "1";
-	argv[5] = "-b";
-	argv[6] = "4";
-	argv[7] = "-t";
-	argv[8] = "traces/trans.trace"; */
 
-	Uint opt;
-	FILE* trace_file;
-	char* file_addr;
-	Uint num_s = 0, num_b = 0;
-	Uint num_S, num_E = 0;
-	CacheLine** cache_begin;
-	char instrtuction;
-	Ulong addr, value;
-	Ulong tag;
-	Ulong index, offset;
-	Uint i, j;
-	Ulong hits = 0, misses = 0, evictions = 0;
-	Ulong instruction_count = 0, line_idx;
-	int instruction_result;
+void print_help();
+void parse_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong *tag, Ulong *index, Ulong *offset);
+int access_data(CacheLine **cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line);
+
+int main(int argc, char *argv[])
+{
+	/* Used for parse command line arguments */
+	char opt;
+	char *file_addr;
 	int verbose = 0;
-	while ((opt = getopt(argc, argv, "vhs:E:b:t:")) != -1) {
-		switch (opt) {
-			case 'h':
-				print_help();
-				exit(0);
-			case 'v':
-				verbose = 1;
-				break;
-			case 's':
-				num_s = atoi(optarg);
-				break;
-			case 'E':
-				num_E = atoi(optarg);
-				break;
-			case 'b':
-				num_b = atoi(optarg);
-				break;
-			case 't':
-				file_addr = optarg;
-				break;
-			default:
+
+	/* Cache Variables */
+	Uint num_s = 0, num_b = 0;
+	Ulong num_S, num_E = 0;
+	CacheLine **cache_begin;
+
+	/* Trace Variables */
+	FILE *trace_file;
+	char instruction;
+	Ulong addr, value;
+	Ulong tag, index, offset;
+
+	/* Loop variables */
+	Uint i, j;
+
+	/* Counters */
+	Ulong hits = 0, misses = 0, evictions = 0;
+	Ulong instruction_count = 0;
+
+	/* Used for simulating*/
+	int instruction_result;
+	Ulong line_idx;
+
+	/* Parse command line arguments */
+	/* Get cache parameters and help verbose flag */
+	while ((opt = getopt(argc, argv, "vhs:E:b:t:")) != -1)
+	{
+		switch (opt)
+		{
+		case 'h':
+			print_help();
+		case 'v':
+			verbose = 1;
+			break;
+		case 's':
+			num_s = atoi(optarg);
+			break;
+		case 'E':
+			num_E = atoi(optarg);
+			break;
+		case 'b':
+			num_b = atoi(optarg);
+			break;
+		case 't':
+			file_addr = optarg;
+			break;
+		default:
 		}
 	}
-	if(num_b == 0 || num_E == 0 || num_s == 0 || file_addr == NULL) {
+	if (num_b == 0 || num_E == 0 || num_s == 0 || file_addr == NULL)
+	{
 		printf("%s: Missing required command line arguments.\n", argv[0]);
 		print_help();
 		exit(1);
 	}
 	trace_file = fopen(file_addr, "r");
-	if(trace_file == NULL) {
+	if (trace_file == NULL)
+	{
 		printf("%s: No such file or directory.\n", file_addr);
 		exit(1);
 	}
+
+	/* Initialize cache */
+	/* Use 2-dimensional array to represent cache */
+	/* Array line for cache set and array column for cache line in set*/
 	num_S = 1 << num_s;
-	cache_begin = (CacheLine**) malloc(num_S * sizeof(CacheLine*));
-	for(i = 0; i < num_S; i++) {
-		cache_begin[i] = (CacheLine*) malloc(num_E * sizeof(CacheLine));
-		for(j = 0; j < num_E; j++) {
+	cache_begin = (CacheLine **)malloc(num_S * sizeof(CacheLine *));
+	for (i = 0; i < num_S; i++)
+	{
+		cache_begin[i] = (CacheLine *)malloc(num_E * sizeof(CacheLine));
+		for (j = 0; j < num_E; j++)
+		{
 			cache_begin[i][j].valid = 0;
 			cache_begin[i][j].tag = 0;
-			cache_begin[i][j].data = 0;
 			cache_begin[i][j].LRU = 0;
 		}
 	}
-	while(fscanf(trace_file, " %c %lx,%lx", &instrtuction, &addr, &value) != EOF) {
-		analyze_addr(addr, num_s, num_b, &tag, &index, &offset);
+
+	/* Read trace file and simulate cache */
+	/* The behavior of laod_data and store_data are identical in this simulator */
+	/* So just use single access_data function to simulate them */
+	/* As to modify_data, just call access_data twice */
+	while (fscanf(trace_file, " %c %lx,%lx", &instruction, &addr, &value) != EOF)
+	{
+		parse_addr(addr, num_s, num_b, &tag, &index, &offset);
 		instruction_count++;
-		if(verbose) printf("%c %lx,%lx", instrtuction, addr, value);
-		switch(instrtuction) {
-			case 'M':
-				instruction_result = access_data(cache_begin, tag, index, num_E, &line_idx);
-				if(instruction_result == 0) {
-					if(verbose) printf(" hit");
-					hits++;
-				}
-				else if(instruction_result == 1) {
-					if(verbose) printf(" miss");
-					misses++;
-				}
-				else {
-					if(verbose) printf(" miss eviction");
-					misses++;
-					evictions++;
-				}
-			case 'L':
-			case 'S':
-				instruction_result = access_data(cache_begin, tag, index, num_E, &line_idx);
-				if(instruction_result == 0) {
-					if(verbose) printf(" hit");
-					hits++;
-				}
-				else if(instruction_result == 1) {
-					if(verbose) printf(" miss");
-					misses++;
-				}
-				else {
-					if(verbose) printf(" miss eviction");
-					misses++;
-					evictions++;
-				}
-				cache_begin[index][line_idx].LRU = instruction_count;
-				if(verbose) printf("\n");
-				break;
-			default:
+		if (verbose)
+			printf("%c %lx,%lx", instruction, addr, value);
+		switch (instruction)
+		{
+		case 'M':
+			instruction_result = access_data(cache_begin, tag, index, num_E, &line_idx);
+			if (instruction_result == 0)
+			{
+				if (verbose)
+					printf(" hit");
+				hits++;
+			}
+			else if (instruction_result == 1)
+			{
+				if (verbose)
+					printf(" miss");
+				misses++;
+			}
+			else
+			{
+				if (verbose)
+					printf(" miss eviction");
+				misses++;
+				evictions++;
+			}
+		case 'L':
+		case 'S':
+			instruction_result = access_data(cache_begin, tag, index, num_E, &line_idx);
+			if (instruction_result == 0)
+			{
+				if (verbose)
+					printf(" hit");
+				hits++;
+			}
+			else if (instruction_result == 1)
+			{
+				if (verbose)
+					printf(" miss");
+				misses++;
+			}
+			else
+			{
+				if (verbose)
+					printf(" miss eviction");
+				misses++;
+				evictions++;
+			}
+			cache_begin[index][line_idx].LRU = instruction_count;
+			if (verbose)
+				printf("\n");
+			break;
+		default:
 		}
-
 	}
-	fclose(trace_file);
-
 	
-    printSummary(hits, misses, evictions);
+	for (i = 0; i < num_S; i++)
+	{
+		free(cache_begin[i]);
+	}
+	free(cache_begin);
+	fclose(trace_file);
+	
+	printSummary(hits, misses, evictions);
 
 	return 0;
 }
 
-void analyze_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong* tag, Ulong* index, Ulong* offset) {
+void parse_addr(Ulong addr, Ulong num_s, Ulong num_b, Ulong *tag, Ulong *index, Ulong *offset)
+{
+	/* Parse address to get tag, index, and offset */
 	*index = (addr >> num_b) & ((1 << num_s) - 1);
 	*offset = addr & ((1 << num_b) - 1);
 	*tag = addr >> (num_b + num_s);
 	return;
 }
-int access_data(CacheLine** cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line) {
+int access_data(CacheLine **cache_begin, Ulong tag, Ulong index, Uint num_E, Ulong *line)
+{
+	/* Access data in cache */
 	int i = 0;
 	int to_evict = 0;
-	for(i = 0; i < num_E; i++) {
-		if(cache_begin[index][i].valid == 1) {
-			if(cache_begin[index][i].tag == tag) {
+	/* Search cache set for valid line with matching tag */
+	for (i = 0; i < num_E; i++)
+	{
+		if (cache_begin[index][i].valid == 1)
+		{
+			if (cache_begin[index][i].tag == tag)
+			{
 				*line = i;
+				/* if found, return hit */
 				return 0;
 			}
 		}
 	}
-	for(i = 0; i < num_E; i++) {
-		if(cache_begin[index][i].LRU < cache_begin[index][to_evict].LRU) {
+
+	/* If not found, search for line to evict */
+	/* Find line with lowest LRU value */
+	for (i = 0; i < num_E; i++)
+	{
+		if (cache_begin[index][i].LRU < cache_begin[index][to_evict].LRU)
+		{
 			to_evict = i;
 		}
 	}
 	*line = to_evict;
 	cache_begin[index][to_evict].valid = 1;
 	cache_begin[index][to_evict].tag = tag;
-	cache_begin[index][to_evict].data = 0;
-	if(cache_begin[index][to_evict].LRU == 0) {
+
+	/* If the LRU value of the line to evict is 0 */
+	/* It means that line is empty, No data in it */
+	if (cache_begin[index][to_evict].LRU == 0)
+	{
+		/* If so, */
 		return 1;
 	}
+
+	/* Else, evict the line and return miss and eviction */
 	return -1;
 }
-void print_help() {
+void print_help()
+{
 	printf("Usage: ./csim-ref [-hv] -s <num> -E <num> -b <num> -t <file>\n");
 	printf("Options:\n");
 	printf("  -h         Print this help message.\n");
@@ -182,5 +243,6 @@ void print_help() {
 	printf("Examples:\n");
 	printf("  linux>  ./csim-ref -s 4 -E 1 -b 4 -t traces/yi.trace\n");
 	printf("  linux>  ./csim-ref -v -s 8 -E 2 -b 4 -t traces/yi.trace\n");
+	exit(0);
 	return;
 }

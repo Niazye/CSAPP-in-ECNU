@@ -11,15 +11,10 @@
             "program": "${fileDirname}/${fileBasenameNoExtension}",
             "args": [
                 //"-h",
-                "-v",
-                "-s",
-                "8",
-                "-E",
-                "2",
-                "-b",
-                "4",
-                "-t",
-                "traces/yi.trace"
+                "-M",
+                "32",
+                "-N",
+                "32"
             ],
             "cwd": "${fileDirname}",
             "miDebuggerPath": "/usr/bin/gdb",
