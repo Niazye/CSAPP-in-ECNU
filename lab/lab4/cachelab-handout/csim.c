@@ -22,9 +22,11 @@ void freeCache(CacheLine **cache_begin, Uint num_s, Uint num_E);
 
 int main(int argc, char *argv[])
 {
+//	fprintf(stderr, "testtest\n");
+//	exit(114);
 	/* Used for parse command line arguments */
 	char opt;
-	char *file_addr;
+	char *file_addr = 0;
 	int verbose = 0;
 
 	/* Cache Variables */
@@ -32,7 +34,7 @@ int main(int argc, char *argv[])
 	CacheLine **cache_begin;
 
 	/* Trace Variables */
-	FILE *trace_file;
+	FILE *trace_file = 0;
 	char instruction;
 	unsigned long addr;
 	Uint tag, index, offset, value;
