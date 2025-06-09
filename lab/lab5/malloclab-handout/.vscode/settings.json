@@ -35,7 +35,8 @@
         "tuple": "cpp",
         "chrono": "c",
         "variant": "c",
-        "unistd.h": "c"
+        "unistd.h": "c",
+        "mm.h": "c"
     },
     "makefile.launchConfigurations": [
         {
@@ -43,5 +44,6 @@
             "binaryPath": "/home/niazye/csapp/lab/lab5/malloclab-handout/mdriver",
             "binaryArgs": ["-t ./traces/ -V"]
         }
-    ]
+    ],
+    "C_Cpp.dimInactiveRegions": true
 }

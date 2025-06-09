@@ -37,14 +37,14 @@ team_t team = {
 
 /* !!!! Choose on of the following two implementations: */
 
-#define EXPLICIT
+#define SEGREGATED
 
 /* Basic constants and macros */
 #define WSIZE 4
 #define DSIZE 8
 
-#ifdef IMPLICIT
-/* !!! BEGINNING OF IMPLICIT FREE LIST IMPLEMENTATION */
+#ifdef IMPLICIT /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
+/* !!! BEGINNING OF IMPLICIT FREE LIST IMPLEMENTATION !!! */
 
 /* Pack a size and allocated bit into a header word */
 #define PACK(size, allocated) ((size) | (allocated))
@@ -135,31 +135,30 @@ void *mm_malloc(size_t size)
 {
     size = ALIGN(size + DSIZE);
     void *currentbp = heap;
-    void *cur_blk_header = HDRP(currentbp);
     while(1) {
         if (currentbp >= heap_end) {
             // void *new_area =
             extend_heap(size);
             //return new_area + WSIZE;
         }
-        cur_blk_header = HDRP(currentbp);
-        if (GET_ALLOC(cur_blk_header)) {
+        if (GET_ALLOC(HDRP(currentbp))) {
             currentbp = NEXT(currentbp);
             continue;
         }
-        if(GET_SIZE(cur_blk_header) >= size) {
-            cut_block(currentbp, size);         // 切割时把原数组的内容修改掉了所以过不了realloc
+        /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+        if(GET_SIZE(HDRP(currentbp)) >= size) {
+            cut_block(currentbp, size);         
             SET(currentbp, 1);
             return currentbp;
+        /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
         }
         /* While be able to coalesce && block_size can not satisfy the request */
-        while(GET_SIZE(cur_blk_header) < size) {
+        while(GET_SIZE(HDRP(currentbp)) < size) {
             /* If cannot coalesce anymore, jump to next block; else continue coalescing */
             switch (coalesce_block(currentbp)) {
                 case -1:
                     /* If this or next block is allocated, jump to next block */
                     currentbp = NEXT(currentbp);
-                    cur_blk_header = HDRP(currentbp);
                     break;
                 case 0:
                     /* If remaining memory is not enough, extend the heap */
@@ -226,11 +225,11 @@ void *mm_realloc(void *ptr, size_t size)
     return newptr;
     
 }
-/* !!! END OF IMPLICIT FREE LIST IMPLEMENTATION */
+/* !!! END OF IMPLICIT FREE LIST IMPLEMENTATION !!! */
 #endif
 
-#ifdef EXPLICIT
-/* !!! BEGINNING OF EXPLICIT FREE LIST IMPLEMENTATION */
+#ifdef SEGREGATED /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */
+/* !!! BEGINNING OF EXPLICIT FREE LIST IMPLEMENTATION !!! */
 
 /* Pack a size and allocated bit into a header word */
 #define PACK(size, allocated) ((size) | (allocated))
@@ -321,31 +320,31 @@ void *mm_malloc(size_t size)
 {
     size = ALIGN(size + DSIZE);
     void *currentbp = heap;
-    void *cur_blk_header = HDRP(currentbp);
+    void *HDRP(currentbp) = HDRP(currentbp);
     while(1) {
         if (currentbp >= heap_end) {
             // void *new_area =
             extend_heap(size);
             //return new_area + WSIZE;
         }
-        cur_blk_header = HDRP(currentbp);
-        if (GET_ALLOC(cur_blk_header)) {
+        HDRP(currentbp) = HDRP(currentbp);
+        if (GET_ALLOC(HDRP(currentbp))) {
             currentbp = NEXT(currentbp);
             continue;
         }
-        if(GET_SIZE(cur_blk_header) >= size) {
+        if(GET_SIZE(HDRP(currentbp)) >= size) {
             cut_block(currentbp, size);         // 切割时把原数组的内容修改掉了所以过不了realloc
             SET(currentbp, 1);
             return currentbp;
         }
         /* While be able to coalesce && block_size can not satisfy the request */
-        while(GET_SIZE(cur_blk_header) < size) {
+        while(GET_SIZE(HDRP(currentbp)) < size) {
             /* If cannot coalesce anymore, jump to next block; else continue coalescing */
             switch (coalesce_block(currentbp)) {
                 case -1:
                     /* If this or next block is allocated, jump to next block */
                     currentbp = NEXT(currentbp);
-                    cur_blk_header = HDRP(currentbp);
+                    HDRP(currentbp) = HDRP(currentbp);
                     break;
                 case 0:
                     /* If remaining memory is not enough, extend the heap */
