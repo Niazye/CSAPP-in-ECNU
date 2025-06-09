@@ -1,0 +1,47 @@
+{
+    "files.associations": {
+        "*.S": "assembly",
+        "stdio.h": "c",
+        "errno.h": "c",
+        "getopt.h": "c",
+        "mman.h": "c",
+        "string.h": "c",
+        "float.h": "c",
+        "memlib.h": "c",
+        "array": "cpp",
+        "atomic": "cpp",
+        "bitset": "cpp",
+        "complex": "cpp",
+        "cwchar": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "vector": "cpp",
+        "exception": "cpp",
+        "iterator": "cpp",
+        "functional": "cpp",
+        "fstream": "cpp",
+        "iosfwd": "cpp",
+        "istream": "cpp",
+        "new": "cpp",
+        "ostream": "cpp",
+        "sstream": "cpp",
+        "stdexcept": "cpp",
+        "streambuf": "cpp",
+        "type_traits": "cpp",
+        "utility": "cpp",
+        "valarray": "cpp",
+        "iostream": "cpp",
+        "tuple": "cpp",
+        "chrono": "c",
+        "variant": "c",
+        "unistd.h": "c"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/niazye/csapp/lab/lab5/malloclab-handout",
+            "binaryPath": "/home/niazye/csapp/lab/lab5/malloclab-handout/mdriver",
+            "binaryArgs": ["-t ./traces/ -V"]
+        }
+    ]
+}

@@ -15,7 +15,7 @@
 #include <assert.h>
 #include <float.h>
 #include <time.h>
-
+#include <getopt.h>
 #include "mm.h"
 #include "memlib.h"
 #include "fsecs.h"
