@@ -36,7 +36,12 @@
         "chrono": "c",
         "variant": "c",
         "unistd.h": "c",
-        "mm.h": "c"
+        "mm.h": "c",
+        "assert.h": "c",
+        "concepts": "c",
+        "time.h": "c",
+        "compare": "c",
+        "limits": "c"
     },
     "makefile.launchConfigurations": [
         {

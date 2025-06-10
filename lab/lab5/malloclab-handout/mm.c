@@ -35,33 +35,31 @@ team_t team = {
     ""
 };
 
-/* !!!! Choose on of the following two implementations: */
-
-#define SEGREGATED
-
 /* Basic constants and macros */
 #define WSIZE 4
 #define DSIZE 8
 
-#ifdef IMPLICIT /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
+#define IMPLEMENTATION 3
+
+#if IMPLEMENTATION == 1 /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
 /* !!! BEGINNING OF IMPLICIT FREE LIST IMPLEMENTATION !!! */
 
 /* Pack a size and allocated bit into a header word */
 #define PACK(size, allocated) ((size) | (allocated))
 
 /* Read and write a word at address p */
-#define READ(p) (*(unsigned int *)(p))
-#define WRITE(p, val) (*(unsigned int *)(p) = (val))
+#define READ(p) (*(unsigned long *)(p))
+#define WRITE(p, val) (*(unsigned long *)(p) = (val))
 
 /* Read the size and allocated field from a header word */
 #define GET_SIZE(word) (READ(word) & ~0b111)
 #define GET_ALLOC(word) (READ(word) & 0b1)
 
 /* Given block ptr bp, compute address of its header and footer */
-#define HDRP(bp) ((char *)(bp) - WSIZE)
+#define HDRP(bp) (char *)((unsigned long *)(bp) - 1)
 
 /* Given block ptr bp, compute address of next and previous blocks */
-#define NEXT(bp) ((char *)(bp) + GET_SIZE((char *)(bp) - WSIZE))
+#define NEXT(bp) (char *)(bp) + GET_SIZE(HDRP(bp))
 
 /* Given block ptr bp, set free if para is 0 or allocated if 1 */
 #define SET(bp, val) WRITE(HDRP(bp), GET_SIZE(HDRP(bp)) | (val))
@@ -72,7 +70,6 @@ team_t team = {
 /* rounds up to the nearest multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
-#define SIZE_T_SIZE (ALIGN(sizeof(size_t)))
 void *heap = NULL;
 void *heap_end = NULL;
 
@@ -81,12 +78,12 @@ void *heap_end = NULL;
  */
 int mm_init(void)
 {
-    heap = mem_sbrk(6 * WSIZE);
+    heap = mem_sbrk(2 * DSIZE);
     if (heap == (void *)-1)
         return -1;
     heap += DSIZE;
-    WRITE(HDRP(heap), PACK(6 * WSIZE, 0));
-    heap_end = (char *)heap + 2 * DSIZE;
+    WRITE(HDRP(heap), PACK(2 * DSIZE, 0));
+    heap_end = (unsigned long *)heap + 1;
     return 0;
 }
 
@@ -118,13 +115,15 @@ int coalesce_block(void *bp)
 /* and return the beginning of the new area (the same as previous brk)*/
 void *extend_heap(size_t size)
 {
-    //printf("\nbefore, heap end is %p\n", mem_heap_hi());
+    
     void *new_area = mem_sbrk(size);
     //printf("after, heap end is %p\n", mem_heap_hi());
     if (new_area == (void *)-1)
         return NULL;
-    WRITE(new_area + WSIZE, PACK(size, 0));
+    WRITE(new_area, PACK(size, 0));
     heap_end += size;
+    printf("extend %ld bytes; total %ld bytes\n", size, heap_end - heap);
+    //printf("now max heap size is: %ld\n", heap_end - heap);
     return new_area;
 }
 /* 
@@ -226,9 +225,244 @@ void *mm_realloc(void *ptr, size_t size)
     
 }
 /* !!! END OF IMPLICIT FREE LIST IMPLEMENTATION !!! */
-#endif
 
-#ifdef SEGREGATED /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */
+
+#elif IMPLEMENTATION == 2/* use explicit free list, first fit, deferred coalescing, have boundary tag */
+/* !!! BEGINNING OF EXPLICIT FREE LIST IMPLEMENTATION !!! */
+
+/* Pack a size and allocated bit into a header word */
+#define PACK(size, allocated) ((size) | (allocated))
+
+/* Read and write a word at address p */
+#define READ(p) (*(unsigned long *)(p))
+#define WRITE(p, val) (*(unsigned long *)(p) = (val))
+
+/* Read the size and allocated field from a header word */
+#define GET_SIZE(word) (READ(word) & ~0b111)
+#define GET_ALLOC(word) (READ(word) & 0b1)
+
+/* Given block ptr bp, compute address of its header and footer */
+#define HDRP(bp) (char *)((unsigned long *)(bp) - 3)
+//#define FTRP(bp) (char *)((char *)(bp) + GET_SIZE(HDRP(bp)) - DSIZE)
+#define PREDP(bp) ((void **)HDRP(bp) + 1)
+#define SUCCP(bp) ((void **)HDRP(bp) + 2)
+/* Given block ptr bp, compute address of next and previous blocks */
+#define SUCC(bp) *SUCCP(bp)
+#define PRED(bp) *PREDP(bp)
+#define NEXT(bp) (char *)(bp) + GET_SIZE(HDRP(bp))
+
+/* Given block ptr bp, set free if para is 0 or allocated if 1 */
+#define SET(bp, val) WRITE(HDRP(bp), GET_SIZE(HDRP(bp)) | (val))
+
+/* single word (4) or double word (8) alignment */
+#define ALIGNMENT 8
+
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+void *heap = NULL;
+void *heap_end = NULL;
+//void *list_beg = NULL;
+void *list_end = NULL;
+void *list_beg = NULL;
+/* 
+ * mm_init - initialize the malloc package.
+ */
+
+void insert(void *bp, void *succ) {
+    PRED(bp) = PRED(succ);
+    SUCC(PRED(bp)) = bp;
+    SUCC(bp) = succ;
+    PRED(SUCC(bp)) = bp;
+}
+
+void erase(void *bp) {
+    if (bp == list_beg) {
+        list_beg = SUCC(bp);
+        PRED(list_beg) = list_beg;
+        return;
+    }
+    PRED(SUCC(bp)) = PRED(bp);
+    SUCC(PRED(bp)) = SUCC(bp);
+}
+
+void insert_end(void *bp) {
+    insert(bp, list_end);
+}
+
+int mm_init(void)
+{
+    heap = mem_sbrk(3 * DSIZE);
+    if (heap == (void *)-1)
+        return -1;
+    list_end = heap + 3 * DSIZE;
+    heap += 3 * DSIZE;
+    WRITE(HDRP(heap), PACK(3 * DSIZE, 0));
+    PRED(heap) = heap;
+    SUCC(heap) = heap;
+
+    heap = mem_sbrk(3 * DSIZE);
+    if (heap == (void *)-1)
+        return -1;
+    heap_end = heap + 3 * DSIZE;
+    heap += 3 * DSIZE;
+    WRITE(HDRP(heap), PACK(3 * DSIZE, 0));
+    PRED(heap) = heap;
+    SUCC(heap) = heap;
+    list_beg = heap;
+    insert_end(heap);
+    return 0;
+}
+
+void cut_block(void *bp, size_t size)
+{
+    size_t block_size = GET_SIZE(HDRP(bp));
+    if (block_size >= 3 * DSIZE + size) {
+        WRITE(HDRP(bp), PACK(size, 0));
+        WRITE(HDRP(bp) + size, PACK(block_size - size, 0));
+        insert_end(NEXT(bp));
+        //link(bp, NEXT(bp));
+    }
+    return;
+}
+
+int coalesce_block(void *bp)
+{
+    void *next_bp = NEXT(bp);
+    
+    size_t block_size = GET_SIZE(HDRP(bp));
+    size_t next_blk_size = GET_SIZE(HDRP(next_bp));
+    if (SUCC(bp) == list_end || bp == list_end) {
+        return 0;
+    }
+    if (GET_ALLOC(HDRP(next_bp)) || GET_ALLOC(HDRP(bp)) || next_bp >= heap_end)
+        return -1;
+    erase(next_bp);
+    WRITE(HDRP(bp), PACK(block_size + next_blk_size, 0));
+    return 1;
+}
+
+int extend_block(void *bp) {
+    void *next_bp = NEXT(bp);
+    if (next_bp >= heap_end)
+        return 0;
+    if (GET_ALLOC(HDRP(next_bp)))
+        return 0;
+    erase(next_bp);
+    WRITE(HDRP(bp), PACK(GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next_bp)), 1));
+    return 1;
+}
+
+/* If cannot find a suitable fit, extend the heap */
+/* and return the beginning of the new area (the same as previous brk)*/
+void *extend_heap(size_t size)
+{
+    //printf("\nbefore, heap end is %p\n", mem_heap_hi());
+    if (size < 3 * DSIZE)
+        size = 3 * DSIZE;
+    void *new_area = mem_sbrk(size);
+    //printf("after, heap end is %p\n", mem_heap_hi());
+    if (new_area == (void *)-1)
+        return NULL;
+    WRITE(new_area, PACK(size, 0));
+    insert_end(new_area + 3 * DSIZE);
+    if (list_beg == list_end)
+        list_beg = new_area + 3 * DSIZE;
+    heap_end += size;
+    //printf("now max heap size is: %ld\n", heap_end - heap);
+    //printf("extend %ld bytes; total %ld bytes\n", size, heap_end - heap);
+    return new_area;
+}
+/* 
+ * mm_malloc - Allocate a block by incrementing the brk pointer.
+ *     Always allocate a block whose size is a multiple of the alignment.
+ */
+void *mm_malloc(size_t size)
+{
+    size = ALIGN(size + DSIZE);
+    void *currentbp = list_beg;
+    int res = 0;
+    while(1) {
+        if ((currentbp) == list_end) {
+            extend_heap(size);
+            currentbp = list_beg;
+            continue;
+        }
+        while((res = coalesce_block(currentbp)) == 1) ;
+        /* vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv */
+        if(GET_SIZE(HDRP(currentbp)) >= size) {
+            cut_block(currentbp, size);         
+            SET(currentbp, 1);
+            erase(currentbp);
+            return currentbp - 2 * DSIZE;
+            /* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ */
+        }
+        else if (res == -1) {
+            currentbp = SUCC(currentbp);
+        }
+        else if (res == 0) {
+            //extend_heap(size - GET_SIZE(HDRP(currentbp)));
+            extend_heap(size);
+            currentbp = list_beg;
+        }
+    }
+}
+
+/*
+ * mm_free - Freeing a block does nothing.
+ */
+void mm_free(void *ptr)
+{
+    if (ptr == NULL)
+        return;
+    SET(ptr + 2 * DSIZE, 0);
+    insert_end(ptr + 2 * DSIZE);
+    coalesce_block(ptr + 2 * DSIZE);
+    return;
+}
+
+/*
+ * mm_realloc - Implemented simply in terms of mm_malloc and mm_free
+ */
+void *mm_realloc(void *ptr, size_t size)
+{
+    void *newptr = NULL;
+    void *bp = ptr + 2 * DSIZE;
+    if (ptr == NULL)
+        return mm_malloc(size);
+
+    if (size == 0)
+        return mm_free(ptr), NULL;
+    
+    size = ALIGN(size + DSIZE);
+
+    /* If the next block is free, try to coalesce them instead of allocating a new block */
+    /* coalesce block until it can not coalesce anymore or the block size can satisfy the request */
+    while(GET_SIZE(HDRP(bp)) < size && extend_block(bp) == 1) {
+        ;
+    }
+    if (GET_SIZE(HDRP(bp)) >= size) {
+        cut_block(bp, size);
+        SET(bp, 1);
+        return ptr;
+    }
+
+    /* If reach here, it means the current block can not satisfy the request */
+    /* So, we need to allocate a new block and copy the data from the old block */
+    newptr = mm_malloc(size - DSIZE);
+    if (newptr == NULL) {
+        //SET(ptr, 1);
+        return NULL;
+    }
+    memmove(newptr, ptr, GET_SIZE(HDRP(bp)) - DSIZE);
+    WRITE(HDRP(newptr + 2 * DSIZE), PACK(size, 1));
+    mm_free(ptr);
+    return newptr;
+    
+}
+/* !!! END OF EXPLICIT FREE LIST IMPLEMENTATION !!! */
+
+#elif IMPLEMENTATION == 3 /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */
 /* !!! BEGINNING OF EXPLICIT FREE LIST IMPLEMENTATION !!! */
 
 /* Pack a size and allocated bit into a header word */
@@ -320,7 +554,6 @@ void *mm_malloc(size_t size)
 {
     size = ALIGN(size + DSIZE);
     void *currentbp = heap;
-    void *HDRP(currentbp) = HDRP(currentbp);
     while(1) {
         if (currentbp >= heap_end) {
             // void *new_area =
