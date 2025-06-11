@@ -27,25 +27,26 @@ team_t team = {
     "ateam",
     /* First member's full name */
     "Harry Bovik",
-    /* First member's email address */
+    /* First member's email addlist_ends */
     "bovik@cs.cmu.edu",
     /* Second member's full name (leave blank if none) */
     "",
-    /* Second member's email address (leave blank if none) */
+    /* Second member's email addlist_ends (leave blank if none) */
     ""
 };
 
 /* Basic constants and macros */
 #define DSIZE 8
 #define ALIGNMENT 8
+#define CLASS_NUM 20
 
-/* rounds up to the nearest multiple of ALIGNMENT */
+/* rounds up to the nealist_endt multiple of ALIGNMENT */
 #define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
 
 /* Pack a size and allocated bit into a double word */
 #define PACK(size, allocated) ((size) | (allocated))
 
-/* Read and write at address p */
+/* Read and write at addlist_ends p */
 #define READ(p) (*(unsigned long *)(p))
 #define WRITE(p, val) (*(unsigned long *)(p) = (val))
 
@@ -53,10 +54,10 @@ team_t team = {
 #define GET_SIZE(word) (READ(word) & ~0b111)
 #define GET_ALLOC(word) (READ(word) & 0b1)
 
-/* Given block ptr bp, compute address of next blocks */
+/* Given block ptr bp, compute addlist_ends of next blocks */
 #define NEXT(bp) (char *)(bp) + GET_SIZE(HDRP(bp))
 
-/* Given block ptr bp, compute address of previous or succeeding blocks */
+/* Given block ptr bp, compute addlist_ends of previous or succeeding blocks */
 #define SUCC(bp) *((void **)HDRP(bp) + 2)
 #define PRED(bp) *((void **)HDRP(bp) + 1)
 
@@ -72,11 +73,9 @@ team_t team = {
  */
 #define IMPLEMENTATION 2
 
-/* Some global variables and functions' declarations*/
+/* Some shared global variables and functions' declarations*/
 void *heap = NULL;
 void *heap_end = NULL;
-void *list_end = NULL;
-void *list_beg = NULL;
 
 static void *extend_heap(size_t size);
 static void *first_fit(size_t size);
@@ -86,7 +85,7 @@ static int coalesce_block(void *bp);
 #if IMPLEMENTATION == 1 /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
 
 /* 
- * HDRP(bp): compute the address of the header of block whose payload is at address bp.
+ * HDRP(bp): compute the addlist_ends of the header of block whose payload is at addlist_ends bp.
  * Block stucture differs from the explicit free list implementation,
  * so HDRP computation is different.
  */
@@ -103,6 +102,7 @@ int mm_init(void)
     heap += DSIZE;
     WRITE(HDRP(heap), PACK(2 * DSIZE, 0));
     heap_end = (char *)heap + 1 * DSIZE;
+
     return 0;
 }
 
@@ -135,6 +135,7 @@ static int coalesce_block(void *bp)
         return 0;
     
     WRITE(HDRP(bp), PACK(block_size + next_blk_size, GET_ALLOC(HDRP(bp))));
+
     return 1;
 }
 
@@ -148,6 +149,7 @@ static void *extend_heap(size_t size)
         return NULL;
     WRITE(new_area, PACK(size, 0));
     heap_end += size;
+
     return new_area;
 }
 
@@ -159,9 +161,7 @@ static void *extend_heap(size_t size)
 static void *first_fit(size_t size) {
     void *currentbp = heap;
     
-    while(1) {
-        if (currentbp >= heap_end) /* If fail */
-            return NULL;
+    while(currentbp < heap_end) {
         if (GET_ALLOC(HDRP(currentbp))) { 
             currentbp = NEXT(currentbp);
             continue;
@@ -171,6 +171,8 @@ static void *first_fit(size_t size) {
         if (!coalesce_block(currentbp)) 
             currentbp = NEXT(currentbp);
     }
+
+    return NULL;
 }
 
 /* 
@@ -188,8 +190,8 @@ void *mm_malloc(size_t size)
         extend_heap(size - GET_SIZE(HDRP(currentbp)));
         coalesce_block(currentbp);
     }
-    WRITE(HDRP(currentbp), PACK(size, 1));
-    return currentbp;
+
+    return WRITE(HDRP(currentbp), PACK(size, 1)), currentbp;
 }
 
 /*
@@ -200,6 +202,7 @@ void mm_free(void *ptr)
     if (ptr == NULL)
         return;
     SET(ptr, 0);
+
     return;
 }
 
@@ -217,17 +220,13 @@ void *mm_realloc(void *ptr, size_t size)
         return mm_free(ptr), NULL;
     
     size = ALIGN(size + DSIZE);
-    if (size <= GET_SIZE(HDRP(ptr))) {
-        cut_block(ptr, size);
-        return ptr;
-    }
+    if (size <= GET_SIZE(HDRP(ptr)))
+        return cut_block(ptr, size), ptr;
 
     /* If the next block is free, try to coalesce them instead of allocating a new block */
     while(GET_SIZE(HDRP(ptr)) < size && coalesce_block(ptr)) ;
-    if (GET_SIZE(HDRP(ptr)) >= size) {
-        cut_block(ptr, size);
-        return ptr;
-    }
+    if (GET_SIZE(HDRP(ptr)) >= size)
+        return cut_block(ptr, size), ptr;
 
     /* If reach here, it means the current heap can not satisfy the request */
     /* So, we need to allocate a new block and copy the data from the old block */
@@ -236,8 +235,8 @@ void *mm_realloc(void *ptr, size_t size)
         return NULL;
     memmove(newptr, ptr, GET_SIZE(HDRP(ptr)) - DSIZE);
     WRITE(HDRP(newptr), PACK(size, 1));
-    mm_free(ptr);
-    return newptr;
+
+    return mm_free(ptr), newptr;
     
 }
 
@@ -252,59 +251,52 @@ static void erase(void *bp);
 static void insert(void *bp);
 
 static void *first_fit(size_t size) {
-    void *currentbp = list_beg;
-    while(1) {
-        if ((currentbp) == list_end)
-            return NULL;
+    void *currentbp = heap;
+    currentbp = SUCC(heap);
+    while(currentbp != heap) {
         if (coalesce_block(currentbp))
             continue;
         if(GET_SIZE(HDRP(currentbp)) >= size)
             return currentbp - 2 * DSIZE;
         currentbp = SUCC(currentbp);
     }
+
+    return NULL;
 }
 
 /*
  * insert - insert a free block to the end of the free list 
  */
 static void insert(void *bp) {
-    PRED(bp) = PRED(list_end);
+    PRED(bp) = PRED(heap);
     SUCC(PRED(bp)) = bp;
-    SUCC(bp) = list_end;
+    SUCC(bp) = heap;
     PRED(SUCC(bp)) = bp;
-    if(list_beg == list_end)
-        list_beg = bp;
+
+    return;
 }
 
 /*
  * erase - erase a block from the free list
  */
 static void erase(void *bp) {
-    if (bp == list_beg)
-        list_beg = SUCC(bp);
     PRED(SUCC(bp)) = PRED(bp);
     SUCC(PRED(bp)) = SUCC(bp);
+
+    return;
 }
 
 int mm_init(void)
 {
-    heap = mem_sbrk(6 * DSIZE);
+    heap = mem_sbrk(3 * DSIZE);
     if (heap == (void *)-1)
         return -1;
-    list_end = heap + 3 * DSIZE;
-    heap += 3 * DSIZE;
+    heap = heap + 3 * DSIZE;
     WRITE(HDRP(heap), PACK(3 * DSIZE, 1));
     PRED(heap) = heap;
     SUCC(heap) = heap;
 
     heap_end = heap + 3 * DSIZE;
-    heap += 3 * DSIZE;
-    WRITE(HDRP(heap), PACK(3 * DSIZE, 0));
-    PRED(heap) = heap;
-    SUCC(heap) = heap;
-    list_beg = heap;
-
-    insert(list_beg);
 
     return 0;
 }
@@ -317,6 +309,7 @@ static void cut_block(void *bp, size_t size)
         WRITE(HDRP(NEXT(bp)), PACK(block_size - size, 0));
         insert(NEXT(bp));
     }
+
     return;
 }
 
@@ -324,14 +317,12 @@ static int coalesce_block(void *bp)
 {
     void *next_bp = NEXT(bp);
     
-    size_t block_size = GET_SIZE(HDRP(bp));
-    size_t next_blk_size = GET_SIZE(HDRP(next_bp));
     if(GET_ALLOC(HDRP(next_bp)) || next_bp >= heap_end) 
         return 0;
 
-    WRITE(HDRP(bp), PACK(block_size + next_blk_size, GET_ALLOC(HDRP(bp))));
-    erase(next_bp);
-    return 1;
+    WRITE(HDRP(bp), PACK(GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next_bp)), GET_ALLOC(HDRP(bp))));
+
+    return erase(next_bp), 1;
 }
 
 static void *extend_heap(size_t size)
@@ -344,6 +335,7 @@ static void *extend_heap(size_t size)
     WRITE(new_area, PACK(size, 0));
     insert(new_area + 3 * DSIZE);
     heap_end += size;
+
     return new_area;
 }
 
@@ -356,8 +348,8 @@ void *mm_malloc(size_t size)
         /* 理论上也能实现，因为扩展后 extend_heap 返回值所在块有恰好 size 大小的空间 */
         /* 唯一的区别在于，这样会使得这个块前面可能存在的小块空闲不被使用 */
         /* 理论上不影响正确性，但事实上修改后会使得 realloc2-bal.rep 出现段错误 */
-        /* 不知道为什么，于是选择不修改。不修改可以轻微地减少外部碎片，提高内存利用率 */
-        /* 事实上，因为重复寻找空闲块，确实增加了耗时，但不会影响最终得分 */
+        /* 不知道为什么，只能不修改。不修改可以轻微地减少外部碎片，提高内存利用率 */
+        /* 但会增加查找时间，因为需要再次从开头查找，但事实上仍然能得到满分 */
         extend_heap(size);
         currentbp = first_fit(size);
     }
@@ -365,6 +357,7 @@ void *mm_malloc(size_t size)
     
     erase(currentbp + 2 * DSIZE);
     SET(currentbp + 2 * DSIZE, 1);
+
     return currentbp;
 }
 
@@ -391,29 +384,205 @@ void *mm_realloc(void *ptr, size_t size)
     size = ALIGN(size + DSIZE);
 
     while(GET_SIZE(HDRP(bp)) < size && coalesce_block(bp));
-    if (GET_SIZE(HDRP(bp)) >= size) {
-        cut_block(bp, size);
-        return ptr;
-    }
+    if (GET_SIZE(HDRP(bp)) >= size)
+        return cut_block(bp, size), ptr;
 
     newptr = mm_malloc(size - DSIZE);
     if (newptr == NULL)
         return NULL;
     memmove(newptr, ptr, GET_SIZE(HDRP(bp)) - DSIZE);
     WRITE(HDRP(newptr + 2 * DSIZE), PACK(size, 1));
-    mm_free(ptr);
-    return newptr;
+    return mm_free(ptr), newptr;
 }
 
-#elif IMPLEMENTATION == 3 /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */
-/* !!! BEGINNING OF SEGREGATED FREE LIST IMPLEMENTATION !!! */
+#elif IMPLEMENTATION == 3 /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */E
 
-/* Abandoned */
-/* 太难了，不会 */
-/* 吞吐率已经满分，利用率会降低 */
-/* 不做了 */
+/* The same as the explicit free list implementation */
+#define HDRP(bp) (char *)((unsigned long *)(bp) - 3)
 
-/* END OF SEGREGATED FREE LIST IMPLEMENTATION */
+/* functions for explicit list */
+/* Insert a block to the end of the list and erase a block from the list */
+static void erase(void *bp);
+static void insert(void *bp);
+
+/* functions for segregated list */
+/* give a size, find the list */
+static void *find_list(size_t size);
+
+static void *find_list(size_t size) {
+    int i = 0;
+    for (i = 0; i < CLASS_NUM - 1; i++)
+        if (size <= (1 << (i + 5)))
+            return ((heap + i * 3 * DSIZE) + 3 * DSIZE);
+    
+    return (((long *)heap + (CLASS_NUM - 1) * 3) + 3 * DSIZE);
+}
+
+static void *first_fit(size_t size) {
+    void *link_end = NULL;
+    for(link_end = find_list(size); link_end <= heap + (CLASS_NUM - 1) * 3 * DSIZE; link_end = NEXT(link_end)) {
+        void *currentbp = SUCC(link_end);
+        while(currentbp != link_end) {
+            if (coalesce_block(currentbp)) {
+                currentbp = SUCC(link_end);
+                continue;
+            }
+            if(GET_SIZE(HDRP(currentbp)) >= size)
+                return currentbp - 2 * DSIZE;
+            currentbp = SUCC(currentbp);
+        }
+    }
+
+    return NULL;
+}
+
+/*
+ * insert - insert a free block to the end of the free list.
+ * But at first, have to find the list where the block should belongs to.
+ */
+static void insert(void *bp) {
+    size_t size = GET_SIZE(HDRP(bp));
+    void *res = find_list(size);
+    
+    PRED(bp) = PRED(res);
+    SUCC(PRED(bp)) = bp;
+    SUCC(bp) = res;
+    PRED(SUCC(bp)) = bp;
+
+    return;
+}
+
+/*
+ * erase - erase a block from the free list
+ */
+static void erase(void *bp) {
+    PRED(SUCC(bp)) = PRED(bp);
+    SUCC(PRED(bp)) = SUCC(bp);
+
+    return;
+}
+
+int mm_init(void)
+{
+    int i = 0;
+    heap = mem_sbrk(CLASS_NUM * 3 * DSIZE);
+    if (heap == (void *)-1)
+        return -1;
+    
+    heap_end = heap + CLASS_NUM * 3 * DSIZE;
+    for(i = 0; i < CLASS_NUM; i++) {
+        WRITE(heap + i * 3 * DSIZE + 0 * DSIZE, PACK(3 * DSIZE, 1));
+        SUCC(heap + i * 3 * DSIZE + 3 * DSIZE) = heap + i * 3 * DSIZE + 3 * DSIZE;
+        PRED(heap + i * 3 * DSIZE + 3 * DSIZE) = heap + i * 3 * DSIZE + 3 * DSIZE;
+    }
+
+    return 0;
+}
+
+static void cut_block(void *bp, size_t size)
+{
+    size_t block_size = GET_SIZE(HDRP(bp));
+    if (block_size >= 3 * DSIZE + size) {
+        WRITE(HDRP(bp), PACK(size, GET_ALLOC(HDRP(bp))));
+        WRITE(HDRP(NEXT(bp)), PACK(block_size - size, 0));
+        insert(NEXT(bp));
+    }
+
+    return;
+}
+
+static int coalesce_block(void *bp)
+{
+    void *next_bp = NEXT(bp);
+    
+    if(GET_ALLOC(HDRP(next_bp)) || next_bp >= heap_end) 
+        return 0;
+    
+    WRITE(HDRP(bp), PACK(GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next_bp)), GET_ALLOC(HDRP(bp))));
+    erase(bp);
+    erase(next_bp);
+    insert(bp);
+
+    return 1;
+}
+
+static int expand_block(void *bp) {
+    void *next_bp = NEXT(bp);
+
+    if (GET_ALLOC(HDRP(next_bp)) || next_bp >= heap_end)
+        return 0;
+
+    erase(next_bp);
+    WRITE(HDRP(bp), PACK(GET_SIZE(HDRP(bp)) + GET_SIZE(HDRP(next_bp)), GET_ALLOC(HDRP(bp))));
+
+    return 1;
+
+}
+
+static void *extend_heap(size_t size)
+{
+    if (size < 3 * DSIZE)
+        size = 3 * DSIZE;
+    void *new_area = mem_sbrk(size);
+    if (new_area == (void *)-1)
+        return NULL;
+
+    WRITE(new_area, PACK(size, 0));
+    insert(new_area + 3 * DSIZE);
+    heap_end += size;
+
+    return new_area;
+}
+
+void *mm_malloc(size_t size)
+{
+    size = ALIGN(size + DSIZE);
+    void *currentbp = first_fit(size);
+    if(currentbp == NULL) {
+        extend_heap(size);
+        currentbp = first_fit(size);
+    }
+    cut_block(currentbp + 2 * DSIZE, size);
+    erase(currentbp + 2 * DSIZE);
+
+    return SET(currentbp + 2 * DSIZE, 1), currentbp;
+}
+
+void mm_free(void *ptr)
+{
+    if (ptr == NULL)
+        return;
+        
+    SET(ptr + 2 * DSIZE, 0);
+    insert(ptr + 2 * DSIZE);
+    
+    return;
+}
+
+void *mm_realloc(void *ptr, size_t size)
+{
+    void *newptr = NULL;
+    void *bp = ptr + 2 * DSIZE;
+    if (ptr == NULL)
+        return mm_malloc(size);
+
+    if (size == 0)
+        return mm_free(ptr), NULL;
+    
+    size = ALIGN(size + DSIZE);
+
+    while(GET_SIZE(HDRP(bp)) < size && expand_block(bp));
+    if (GET_SIZE(HDRP(bp)) >= size)
+        return cut_block(bp, size), ptr;
+
+    newptr = mm_malloc(size - DSIZE);
+    if (newptr == NULL)
+        return NULL;
+    memmove(newptr, ptr, GET_SIZE(HDRP(bp)) - DSIZE);
+    SET(HDRP(newptr + 2 * DSIZE), 1);
+    return mm_free(ptr), newptr;
+}
+
 #endif
 
 

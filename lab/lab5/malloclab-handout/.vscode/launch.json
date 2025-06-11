@@ -6,8 +6,8 @@
             "request": "launch",
             "program": "${fileDirname}/mdriver",
             "args": [
-                "-t",
-                "./traces",
+                "-f",
+                "./traces/realloc-bal.rep",
                 "-V"
             ],
             "stopAtEntry": false,
