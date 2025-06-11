@@ -599,8 +599,8 @@ static int eval_mm_valid(trace_t *trace, int tracenum, range_t **ranges)
 	index = trace->ops[i].index;
 	size = trace->ops[i].size;
 
+	//printf("test op%d\n", i);
         switch (trace->ops[i].type) {
-
         case ALLOC: /* mm_malloc */
 
 	    /* Call the student's malloc */
@@ -711,6 +711,7 @@ static double eval_mm_util(trace_t *trace, int tracenum, range_t **ranges)
 	app_error("mm_init failed in eval_mm_util");
 
     for (i = 0;  i < trace->num_ops;  i++) {
+			//printf("test op%d\n", i);
         switch (trace->ops[i].type) {
 
         case ALLOC: /* mm_alloc */

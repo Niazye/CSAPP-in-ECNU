@@ -41,7 +41,9 @@
         "concepts": "c",
         "time.h": "c",
         "compare": "c",
-        "limits": "c"
+        "limits": "c",
+        "stdlib.h": "c",
+        "ou1": "c"
     },
     "makefile.launchConfigurations": [
         {
