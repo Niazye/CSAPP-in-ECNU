@@ -43,7 +43,8 @@
         "compare": "c",
         "limits": "c",
         "stdlib.h": "c",
-        "ou1": "c"
+        "ou1": "c",
+        "config.h": "c"
     },
     "makefile.launchConfigurations": [
         {
