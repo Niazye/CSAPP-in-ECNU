@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "*.S": "assembly",
+        "mm.h": "c",
+        "memlib.h": "c"
+    }
+}
