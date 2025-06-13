@@ -71,7 +71,6 @@ team_t team = {
  * 3: use segregated free list implementation
  * !!!!!!!!!!!!
  */
-#define IMPLEMENTATION 3
 
 /* Some shared global variables and functions' declarations*/
 void *heap = NULL;
@@ -81,6 +80,8 @@ static void *extend_heap(size_t size);
 static void *first_fit(size_t size);
 static void cut_block(void *bp, size_t size);
 static int coalesce_block(void *bp);
+
+#define IMPLEMENTATION 2
 
 #if IMPLEMENTATION == 1 /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
 
