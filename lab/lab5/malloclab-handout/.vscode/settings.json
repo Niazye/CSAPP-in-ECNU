@@ -44,7 +44,8 @@
         "limits": "c",
         "stdlib.h": "c",
         "ou1": "c",
-        "config.h": "c"
+        "config.h": "c",
+        "cstdlib": "c"
     },
     "makefile.launchConfigurations": [
         {

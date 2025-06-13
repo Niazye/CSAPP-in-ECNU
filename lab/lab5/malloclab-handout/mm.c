@@ -58,6 +58,7 @@ team_t team = {
 #define NEXT(bp) (char *)(bp) + GET_SIZE(HDRP(bp))
 
 /* Given block ptr bp, compute addlist_ends of previous or succeeding blocks */
+#define SUCCP(bp) ((void **) HDRP(bp) + 2)
 #define SUCC(bp) *((void **)HDRP(bp) + 2)
 #define PRED(bp) *((void **)HDRP(bp) + 1)
 
@@ -270,6 +271,7 @@ static void *first_fit(size_t size) {
 static void insert(void *bp) {
     PRED(bp) = PRED(heap);
     SUCC(PRED(bp)) = bp;
+    WRITE(SUCCP(bp), heap);
     SUCC(bp) = heap;
     PRED(SUCC(bp)) = bp;
 
@@ -584,16 +586,4 @@ void *mm_realloc(void *ptr, size_t size)
 }
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
 
