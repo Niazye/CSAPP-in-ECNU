@@ -45,7 +45,7 @@
         "stdlib.h": "c",
         "ou1": "c",
         "config.h": "c",
-        "cstdlib": "c"
+        "ftimer.h": "c"
     },
     "makefile.launchConfigurations": [
         {

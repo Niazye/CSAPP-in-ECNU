@@ -72,7 +72,7 @@ team_t team = {
  * 3: use segregated free list implementation
  * !!!!!!!!!!!!
  */
-#define IMPLEMENTATION 2
+#define IMPLEMENTATION 3
 
 /* Some shared global variables and functions' declarations*/
 void *heap = NULL;
@@ -386,7 +386,7 @@ void *mm_realloc(void *ptr, size_t size)
     size = ALIGN(size + DSIZE);
 
     while(GET_SIZE(HDRP(bp)) < size && coalesce_block(bp));
-    if (GET_SIZE(HDRP(bp)) >= size)
+    if (GET_SIZE(HDRP(bp)) >= size) 
         return cut_block(bp, size), ptr;
 
     newptr = mm_malloc(size - DSIZE);
@@ -397,7 +397,7 @@ void *mm_realloc(void *ptr, size_t size)
     return mm_free(ptr), newptr;
 }
 
-#elif IMPLEMENTATION == 3 /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */E
+#elif IMPLEMENTATION == 3 /* use segregated free list, segregated fit, which is the same as c-standard malloc implementation */
 
 /* The same as the explicit free list implementation */
 #define HDRP(bp) (char *)((unsigned long *)(bp) - 3)
@@ -584,6 +584,8 @@ void *mm_realloc(void *ptr, size_t size)
     SET(HDRP(newptr + 2 * DSIZE), 1);
     return mm_free(ptr), newptr;
 }
+
+
 
 #endif
 
