@@ -81,7 +81,7 @@ static void *first_fit(size_t size);
 static void cut_block(void *bp, size_t size);
 static int coalesce_block(void *bp);
 
-#define IMPLEMENTATION 2
+#define IMPLEMENTATION 1
 
 #if IMPLEMENTATION == 1 /* use implicit free list, first fit, deferred coalescing, but no boundary tag */
 
@@ -185,12 +185,8 @@ void *mm_malloc(size_t size)
     void *currentbp = first_fit(size);
     if(currentbp == NULL)
         currentbp = extend_heap(size) + DSIZE;
-    else if(GET_SIZE(HDRP(currentbp)) >= size)
-        cut_block(currentbp, size);
-    else {
-        extend_heap(size - GET_SIZE(HDRP(currentbp)));
-        coalesce_block(currentbp);
-    }
+    
+    cut_block(currentbp, size);
 
     return WRITE(HDRP(currentbp), PACK(size, 1)), currentbp;
 }
